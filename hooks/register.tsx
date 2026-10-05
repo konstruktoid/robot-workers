@@ -85,15 +85,9 @@ export const register: Register = on => {
       here = base(await $.session.root())
       self = await $.session.id()
       // Used only when absolute, ours, not a link and private; beacons older than a day are from long-gone sessions.
-      // The beacon is made 0600 here because $.fs.write takes no mode and rewrites an existing file in place.
+      // bin/beacon-dir.sh makes the beacon 0600 because $.fs.write takes no mode and rewrites an existing file in place.
       const found = SESSION_ID.test(self)
-        ? await $.process.run([
-            'sh',
-            '-c',
-            'umask 077; d="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/robot-workers/sessions"; case "$d" in /*) ;; *) exit 1;; esac; f="$d/$1.json"; mkdir -p "$d" && [ ! -L "$d" ] && [ -O "$d" ] && chmod 700 "$d" && [ ! -L "$f" ] && { [ -e "$f" ] || : > "$f"; } && chmod 600 "$f" && { find "$d" -maxdepth 1 -type f -name "*.json" -mmin +1440 -delete; printf %s "$d"; }',
-            'sh',
-            self,
-          ])
+        ? await $.process.run([`${$.plugin.root}/bin/beacon-dir.sh`, self])
         : undefined
       if (found?.exitCode === 0 && found.stdout.startsWith('/')) shared = found.stdout
     } catch {
