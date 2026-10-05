@@ -1,0 +1,14 @@
+{
+  "name": "robot-workers",
+  "description": "Robot Workers, a Claude Code mod that draws live agents as pixel robots",
+  "owner": {
+    "name": "Thomas Sjögren"
+  },
+  "plugins": [
+    {
+      "name": "robot-workers",
+      "source": "./",
+      "description": "Pixel-robot pane showing live agents, their tools, files and messages"
+    }
+  ]
+}

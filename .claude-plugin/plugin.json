@@ -1,0 +1,14 @@
+{
+  "name": "robot-workers",
+  "displayName": "Robot Workers",
+  "version": "0.1.0",
+  "description": "Pixel-robot pane showing live agents, their tools, files and messages",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Thomas Sjögren"
+  },
+  "homepage": "https://github.com/konstruktoid/robot-workers",
+  "repository": "https://github.com/konstruktoid/robot-workers",
+  "license": "Apache-2.0",
+  "keywords": ["mod", "pane", "agents", "subagents", "visualization", "opencode"]
+}
