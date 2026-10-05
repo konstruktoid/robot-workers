@@ -1,7 +1,7 @@
 {
   "name": "robot-workers",
   "displayName": "Robot Workers",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pixel-robot pane showing live agents, their tools, files and messages",
   "types": "./types/index.d.ts",
   "author": {
@@ -9,6 +9,9 @@
   },
   "homepage": "https://github.com/konstruktoid/robot-workers",
   "repository": "https://github.com/konstruktoid/robot-workers",
+  "documentationUrl": "https://github.com/konstruktoid/robot-workers#readme",
+  "supportUrl": "https://github.com/konstruktoid/robot-workers/issues",
+  "privacyPolicyUrl": "https://github.com/konstruktoid/robot-workers#what-the-mod-does-on-your-machine",
   "license": "Apache-2.0",
   "keywords": ["mod", "pane", "agents", "subagents", "visualization", "opencode"]
 }
