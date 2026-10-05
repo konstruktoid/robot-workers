@@ -77,18 +77,12 @@ beacon, so they get a desk on the maps of interactive sessions.
 
 `claude plugin validate .` lists every API call the mod makes. Each one is used for this:
 
-- `$.process.run`: once per session start, runs `sh -c` with the fixed script below and the session id as `$1`. It
-  creates the beacon folder, refuses it if it is relative, a symlink or owned by someone else, sets modes `0700` and
-  `0600`, deletes beacons untouched for a day, and prints the folder path. The only programs it starts are `mkdir`,
-  `chmod` and `find`; `umask`, `case`, `[`, `:` and `printf` are shell built-ins. A shell is needed because
-  `$.fs.write` cannot set a file mode.
-
-  ```sh
-  umask 077; d="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/robot-workers/sessions"; case "$d" in /*) ;; *) exit 1;; esac;
-  f="$d/$1.json"; mkdir -p "$d" && [ ! -L "$d" ] && [ -O "$d" ] && chmod 700 "$d" && [ ! -L "$f" ] &&
-  { [ -e "$f" ] || : > "$f"; } && chmod 600 "$f" &&
-  { find "$d" -maxdepth 1 -type f -name "*.json" -mmin +1440 -delete; printf %s "$d"; }
-  ```
+- `$.process.run`: once per session start, runs the shipped script `bin/beacon-dir.sh` by its fixed path under the
+  plugin folder, with the session id as its only argument. It creates the beacon folder, refuses it if it is relative,
+  a symlink or owned by someone else, sets modes `0700` and `0600`, deletes beacons untouched for a day, and prints the
+  folder path. The only programs it starts are `mkdir`, `chmod` and `find`; `umask`, `case`, `[`, `:` and `printf`
+  are shell built-ins. A script is needed because `$.fs.write` cannot set a file mode. It is the only program the mod
+  starts, and it opens no network connection.
 
 - `$.fs.write`, `$.fs.list`, `$.fs.read`: only inside that folder. The mod writes one file,
   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/robot-workers/sessions/<session-id>.json`, in the format in
@@ -169,6 +163,7 @@ name.
 | `.claude-plugin/marketplace.json` | Marketplace listing for `claude plugin marketplace add` |
 | `hooks/hooks.json` | Lists `hooks/register.tsx` as the mod's module |
 | `hooks/register.tsx` | Claude Code side: event hooks, beacon writing and reading, the Workshop pane |
+| `bin/beacon-dir.sh` | Creates the private beacon folder and file at session start |
 | `hooks/scene.ts` | Shared, side-effect-free code: beacon parsing, layout, robot designs, pixel painting |
 | `hooks/*.test.ts` | Claude Code plugin tests |
 | `opencode/robot-workers.ts` | OpenCode beacon writer (server plugin) |
