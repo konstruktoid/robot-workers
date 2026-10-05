@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Beacon, World } from '../types'
 
-import { base, BEACON_EVERY, BEACON_NAME, beaconOf, castOf, clip, count, crewOf, describe, EMPTY, isRecord, layoutFor, LEGEND_ROWS, LEGEND_W, list, logged, MAIN, MAP_COLS, markWaiting, MAX_BEACON_BYTES, MAX_COLS, MAX_LINKS, MAX_PEERS, MAX_ROWS, mergeScene, MIN_COLS, MIN_ROWS, minRowsFor, normalise, own, parseBeacon, pruned, ROSTER_EVERY, Scene, SCREEN_CHROME, SESSION_ID, setTurn, short, spotOf, STALE_MS, startThinking, STEP_MS, targetOf } from './scene'
+import { base, BEACON_EVERY, BEACON_NAME, beaconOf, castOf, clip, count, crewOf, describe, EMPTY, isRecord, layoutFor, LEGEND_ROWS, LEGEND_W, list, logged, MAIN, MAP_COLS,MAX_BEACON_BYTES, MAX_COLS, MAX_LINKS, MAX_PEERS, MAX_ROWS, mergeScene, MIN_COLS, MIN_ROWS, minRowsFor, normalise, own, parseBeacon, pruned, ROSTER_EVERY, Scene, SCREEN_CHROME, SESSION_ID, setTurn, short, spotOf, STALE_MS, startThinking, STEP_MS, targetOf } from './scene'
 import type { Layout } from './scene'
 
 const PANE = 'workers'
@@ -74,7 +74,6 @@ export const register: Register = on => {
   let here = 'session'
   let self = ''
   let ticker: { cancel: () => void } | undefined
-  const owners = new Map<string, string>()
   const scene = new Scene()
   const paint = (w: World, lay: Layout, now: number, advance: boolean): string =>
     scene.paint(w, lay, now, advance, here, self).encode()
@@ -87,12 +86,15 @@ export const register: Register = on => {
       self = await $.session.id()
       // Used only when absolute, ours, not a link and private; beacons older than a day are from long-gone sessions.
       // The beacon is made 0600 here because $.fs.write takes no mode and rewrites an existing file in place.
-      const script =
-        'umask 077; d="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/robot-workers/sessions"; case "$d" in /*) ;; *) exit 1;; esac; ' +
-        'f="$d/$1.json"; mkdir -p "$d" && [ ! -L "$d" ] && [ -O "$d" ] && chmod 700 "$d" && [ ! -L "$f" ] && ' +
-        '{ [ -e "$f" ] || : > "$f"; } && chmod 600 "$f" && ' +
-        '{ find "$d" -maxdepth 1 -type f -name "*.json" -mmin +1440 -delete; printf %s "$d"; }'
-      const found = SESSION_ID.test(self) ? await $.process.run(['sh', '-c', script, 'sh', self]) : undefined
+      const found = SESSION_ID.test(self)
+        ? await $.process.run([
+            'sh',
+            '-c',
+            'umask 077; d="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/robot-workers/sessions"; case "$d" in /*) ;; *) exit 1;; esac; f="$d/$1.json"; mkdir -p "$d" && [ ! -L "$d" ] && [ -O "$d" ] && chmod 700 "$d" && [ ! -L "$f" ] && { [ -e "$f" ] || : > "$f"; } && chmod 600 "$f" && { find "$d" -maxdepth 1 -type f -name "*.json" -mmin +1440 -delete; printf %s "$d"; }',
+            'sh',
+            self,
+          ])
+        : undefined
       if (found?.exitCode === 0 && found.stdout.startsWith('/')) shared = found.stdout
     } catch {
       // Without a shared folder the map shows this session alone.
@@ -165,7 +167,6 @@ export const register: Register = on => {
     const input: Record<string, unknown> = isRecord(e) ? e : {}
     const what = targetOf(input)
     const spot = spotOf(e.tool, typeof input.command === 'string' ? input.command : '')
-    owners.set(e.tool_use_id, who)
     const now = Date.now()
     await remember($, w => {
       const prior = own(w.activity, who)
@@ -197,7 +198,6 @@ export const register: Register = on => {
     try {
       return await next(e)
     } finally {
-      owners.delete(e.tool_use_id)
       await remember($, w => {
         const act = own(w.activity, who)
         if (!act) return w
@@ -205,17 +205,6 @@ export const register: Register = on => {
         return { ...w, activity: { ...w.activity, [who]: { ...act, open, busy: open > 0, waiting: open > 0 && act.waiting, at: Date.now() } } }
       })
     }
-  })
-
-  // The verdict of an ask means the call now waits on a dialog or the auto-mode classifier.
-  on('tool.check', async ($, e, next) => {
-    const verdict = await next(e)
-    const who = e.tool_use_id ? owners.get(e.tool_use_id) : undefined
-    if (who && verdict.decision === 'ask') {
-      await remember($, w => logged(markWaiting(w, who, true), who, `waits for permission to use ${e.tool}`, Date.now()))
-    }
-
-    return verdict
   })
 
   on('turn.start', async ($, e, next) => {

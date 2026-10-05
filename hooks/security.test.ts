@@ -237,17 +237,17 @@ test('the tool decides the station even when the command names a test runner or 
 })
 
 test('describe never leaks a command, query or message body', () => {
-  const secret = 'SECRET-TOKEN-hunter2'
-  const cmd = `curl -H "Authorization: ${secret}" https://x.test`
+  const canary = 'CANARY-7f3a'
+  const cmd = `curl -d "${canary}" https://x.test`
   expect(describeAction('Bash', 'run', cmd)).toBe('runs a command')
   expect(describeAction('Bash', 'test', cmd)).toBe('runs the tests')
-  expect(describeAction('WebSearch', 'web', secret)).toBe('searches the web')
-  expect(describeAction('WebFetch', 'web', `https://x.test/?k=${secret}`)).toBe('fetches a web page')
-  expect(describeAction('Agent', 'team', secret)).toBe('starts a subagent')
-  expect(describeAction('TaskStop', 'team', secret)).toBe('checks on its team')
+  expect(describeAction('WebSearch', 'web', canary)).toBe('searches the web')
+  expect(describeAction('WebFetch', 'web', `https://x.test/?k=${canary}`)).toBe('fetches a web page')
+  expect(describeAction('Agent', 'team', canary)).toBe('starts a subagent')
+  expect(describeAction('TaskStop', 'team', canary)).toBe('checks on its team')
   for (const tool of ['Bash', 'PowerShell']) {
     for (const spot of ['run', 'test']) {
-      expect(describeAction(tool, spot, cmd).includes(secret)).toBe(false)
+      expect(describeAction(tool, spot, cmd).includes(canary)).toBe(false)
     }
   }
 })
