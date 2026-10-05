@@ -6,14 +6,14 @@ import type { Beacon } from '../types/index.d.ts'
 import { beaconDir, readBeacons, rowsOf } from './frame.ts'
 import type { Run } from './frame.ts'
 
-// The robot-workers map in opencode's session sidebar; it only reads the beacons that every session writes.
+// The robot-workers map in OpenCode's session sidebar; it only reads the beacons that every session writes.
 
 const SHOWN_KEY = 'robot-workers.band'
 const READ_MS = 1000
-// Used until opencode has laid the sidebar out and the box knows its own width.
+// Used until OpenCode has laid the sidebar out and the box knows its own width.
 const FALLBACK_COLS = 36
 const NARROWEST = 30
-// Directly below the sidebar's own Context block, which opencode registers at order 100.
+// Directly below the sidebar's own Context block, which OpenCode registers at order 100.
 const SIDEBAR_ORDER = 150
 
 const Workshop = (props: { api: TuiPluginApi }) => {
@@ -82,7 +82,7 @@ const tui: TuiPlugin = async api => {
     {
       title: 'Toggle robot workshop',
       value: 'robot-workers.workshop',
-      description: 'Show or hide the robots of every Claude Code, Copilot CLI and opencode session in the sidebar',
+      description: 'Show or hide the robots of every Claude Code, Copilot CLI and OpenCode session in the sidebar',
       category: 'View',
       slash: { name: 'workshop' },
       onSelect: () => {

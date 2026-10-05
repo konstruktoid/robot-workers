@@ -14,7 +14,7 @@ export type Activity = {
 }
 export type Link = { from: string; to: string; kind: 'message'; at: number }
 export type LogLine = { at: number; who: string; text: string }
-export type Member = { id: string; name: string; type: string; status: string; parentId?: string }
+export type Member = { id: string; name: string; type: string; status: string; parentId?: string; desk?: string }
 export type World = {
   activity: Record<string, Activity>
   links: Link[]
@@ -22,7 +22,7 @@ export type World = {
   log: LogLine[]
 }
 
-export type Beacon = { v: 1; id: string; name: string; at: number; ended?: boolean; world: World }
+export type Beacon = { v: 1; id: string; name: string; agent?: string; at: number; ended?: boolean; world: World }
 
 declare module 'claude-code' {
   interface PluginState {

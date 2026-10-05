@@ -83,6 +83,7 @@ const blank = (id, cwd, now) => ({
   v: 1,
   id,
   name: clip(clean(base(cwd) || 'copilot', CAP_NAME), CAP_NAME),
+  agent: 'copilot',
   at: now,
   world: { activity: {}, links: [], roster: [], log: [] },
 })

@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, isAbsolute } from 'node:path'
 
-// Writes opencode sessions as robot-workers beacons; BEACON.md in the repository is the format both sides follow.
+// Writes OpenCode sessions as robot-workers beacons; BEACON.md in the repository is the format both sides follow.
 
 type Activity = {
   tool: string
@@ -24,6 +24,7 @@ type LogLine = { at: number; who: string; text: string }
 type Crew = {
   id: string
   name: string
+  agent: string
   seen: number
   activity: Map<string, Activity>
   calls: Map<string, Set<string>>
@@ -58,7 +59,7 @@ const clip = (text: string, n: number) => (text.length > n ? text.slice(0, n - 1
 const base = (path: string) => path.split('/').filter(Boolean).pop() ?? path
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
 const text = (x: unknown): string => (typeof x === 'string' ? clean(x) : '')
-// Beacon file names allow letters, digits and dashes only, and opencode ids carry underscores.
+// Beacon file names allow letters, digits and dashes only, and OpenCode ids carry underscores.
 const safeId = (id: string): string => id.replace(/[^A-Za-z0-9-]/g, '-').slice(0, 61)
 
 // Mirrors isTestCommand in hooks/scene.ts; keep the two in step.
@@ -132,7 +133,7 @@ const beaconOf = (crew: Crew, now: number) => {
       .map(([who, act]) => [who, { ...act, target: act.onFile && PATH_STATIONS.has(act.spot) ? clip(base(act.target), CAP_SHORT) : '' }]),
   )
   const log = crew.log.filter(l => now - l.at < LOG_SHARE_MS).slice(-LOG_SHARE)
-  return { v: 1, id: crew.id, name: crew.name, at: now, world: { activity, roster, log, links: [] } }
+  return { v: 1, id: crew.id, name: crew.name, agent: crew.agent, at: now, world: { activity, roster, log, links: [] } }
 }
 
 const tombstone = (crew: Crew, now: number) => ({
@@ -216,6 +217,7 @@ export const RobotWorkers: Plugin = async ({ client, directory }) => {
       const crew: Crew = {
         id: `oc-${safeId(id)}`,
         name: clip(base(info.directory || directory) || 'opencode', CAP_SHORT),
+        agent: 'opencode',
         seen: Date.now(),
         activity: new Map(),
         calls: new Map(),
@@ -286,6 +288,14 @@ export const RobotWorkers: Plugin = async ({ client, directory }) => {
       const seat = seats.get(id)
       const member = seat && seat.crew.roster.get(seat.actor)
       if (member && text(info.title)) member.name = clip(text(info.title), LABEL_SHARE)
+    } else if (type === 'message.updated') {
+      // A user message names the agent it was sent to, so the main robot follows each switch between agents.
+      const info = p.info
+      if (!isRecord(info) || info.role !== 'user') return
+      const agent = clip(text(info.agent), LABEL_SHARE)
+      if (!agent || typeof info.sessionID !== 'string' || !info.sessionID) return
+      const seat = await seatOf(info.sessionID)
+      if (seat.actor === MAIN) seat.crew.agent = agent
     } else if (type === 'session.status') {
       const status = isRecord(p.status) ? p.status.type : undefined
       if (status === 'busy') await change(p.sessionID, (act, _seat, now) => (act.inTurn ? undefined : { ...act, inTurn: true, at: now }))
@@ -337,7 +347,7 @@ export const RobotWorkers: Plugin = async ({ client, directory }) => {
         const e: unknown = event
         if (isRecord(e) && typeof e.type === 'string' && isRecord(e.properties)) await onEvent(e.type, e.properties)
       } catch {
-        // The map is decoration: a failed update never reaches opencode.
+        // The map is decoration: a failed update never reaches OpenCode.
       }
     },
     'chat.message': async input => {

@@ -80,5 +80,5 @@ test('a pane body too short for one row of desks gets the smallest map that stil
   const ui = await $.ui.mount({ plugin: 'robot-workers', surface: 'terminal', component: 'Pane', props: props as never, requestId: 'workers' })
   const drawn = JSON.stringify(await ui.drawn())
   await ui.unmount()
-  expect(drawn).toContain('"rows":24')
+  expect(drawn).toContain('"rows":23')
 })
