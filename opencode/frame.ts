@@ -11,7 +11,7 @@ export const beaconDir = (): string => `${process.env.CLAUDE_CONFIG_DIR || `${ho
 
 const hex = (color: number): string => '#' + color.toString(16).padStart(6, '0')
 
-// Every live session's beacon, Claude Code and opencode alike; each file is untrusted and checked as the pane does.
+// Every live session's beacon, Claude Code and OpenCode alike; each file is untrusted and checked as the pane does.
 export const readBeacons = async (dir: string, now = Date.now()): Promise<Beacon[]> => {
   // The folder is read only when it is ours and not a link, as the Claude Code side requires before it writes.
   const top = await lstat(dir).catch(() => undefined)

@@ -53,7 +53,7 @@ const act = (over: Partial<Activity> = {}): Activity => ({
 })
 
 const lay = layoutFor(84, 40)
-const main = { id: 'main', name: 'session', type: 'main', status: 'running' }
+const main = { id: 'main', name: 'claude', type: 'main', status: 'running' }
 const desk0 = { x: 2, y: lay.deskTop }
 const desk1 = { x: 18, y: lay.deskTop }
 const seat0 = deskSeat(desk0, 0)
@@ -63,7 +63,7 @@ test('the pane draws only the map on terminal and the text legend elsewhere', as
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'robot-workers', surface, component: 'Pane', props: {}, requestId: 'workers' })
     const drawn = JSON.stringify(await ui.drawn())
-    expect(drawn.includes('session')).toBe(surface === 'desktop')
+    expect(drawn.includes('claude')).toBe(surface === 'desktop')
     expect(drawn.includes('"Raster"')).toBe(surface === 'terminal')
     await ui.unmount()
   }
@@ -207,12 +207,17 @@ test('another session joins with prefixed ids and its own robot first', () => {
     roster: [{ id: 'a1', name: 'rev', type: 'Explore', status: 'running' }],
     activity: { a1: act({ spot: 'edit' }) },
   }
-  const w = mergeScene(empty, [{ v: 1, id: 'S', name: 'prescryb', at: 0, world: remote }])
-  expect(castOf(w).map(a => [a.id, a.name, a.parentId])).toEqual([
-    ['main', 'session', undefined],
-    ['S:main', 'prescryb', undefined],
-    ['S:a1', 'rev', 'S:main'],
+  const w = mergeScene(empty, [
+    { v: 1, id: 'S', name: 'prescryb', agent: 'opencode', at: 0, world: remote },
+    { v: 1, id: 'T', name: 'older', at: 0, world: { ...empty, activity: { main: act() } } },
   ])
+  expect(castOf(w).map(a => [a.id, a.name, a.parentId])).toEqual([
+    ['main', 'claude', undefined],
+    ['S:main', 'opencode', undefined],
+    ['S:a1', 'rev', 'S:main'],
+    ['T:main', 'main', undefined],
+  ])
+  expect(w.roster.filter(m => m.type === 'main').map(m => m.desk)).toEqual(['prescryb', 'older'])
   expect(w.activity['S:a1'].spot).toBe('edit')
   expect([crewOf('S:a1'), crewOf('a1')]).toEqual(['S', ''])
 })
@@ -439,7 +444,7 @@ test('a compact map fits the opencode sidebar in fewer rows and keeps the same g
       expect(s.x + small.stationW).toBeLessThanOrEqual(cols)
     }
   }
-  expect(minRowsFor(36, true)).toBe(28)
+  expect(minRowsFor(36, true)).toBe(27)
 })
 
 test('quoted text, wrapper flags and script names do not fool test detection', () => {

@@ -1,6 +1,6 @@
 import type { Activity, Beacon, Link, LogLine, Member, World } from '../types'
 
-// Everything the map needs that touches no host: shared by the Claude Code pane and the opencode workshop view.
+// Everything the map needs that touches no host: shared by the Claude Code pane and the OpenCode workshop view.
 export const MAIN = 'main'
 export const THINK = 'think'
 export const ENDED: ReadonlySet<string> = new Set(['completed', 'failed', 'killed'])
@@ -125,6 +125,8 @@ export const DESK_W = 16
 export const BLOCK_H = 8
 export const SEATS = 2
 export const SEAT_W = 8
+// The desk top carries the session's name, so seats start on the row right below it.
+export const DESK_TOP_H = 1
 // A seat row holds a robot, its name and its tag.
 export const SEAT_ROW_H = 5
 // A name or tag no wider than a seat, so neighbours' labels never run together.
@@ -132,7 +134,7 @@ export const LABEL_W = 7
 // Screen rows the pane does not get: the prompt, the status line and the pane's own frame.
 export const SCREEN_CHROME = 6
 export const LOG_ROWS = 5
-// The compact map for opencode's sidebar: four stations a row, no spare row under them, three log lines.
+// The compact map for OpenCode's sidebar: four stations a row, no spare row under them, three log lines.
 export const COMPACT_STATION_W = 8
 export const COMPACT_BLOCK_H = 7
 export const COMPACT_LOG_ROWS = 3
@@ -150,6 +152,8 @@ export const MAX_PEER_AGENTS = 32
 export const MAX_LINKS = 8
 // Peers see agent names no longer than a short label, never a whole task description.
 export const LABEL_SHARE = 24
+// The main robot carries the name of the harness it runs in, since the desk already names the repository.
+export const AGENT = 'claude'
 export const STALE_BUSY_MS = 30 * 60 * 1000
 export const FORGET_MS = 60000
 export const ROSTER_EVERY = 5
@@ -247,13 +251,13 @@ export const layoutFor = (cols: number, rows: number, compact = false): Layout =
 export const minRowsFor = (cols: number, compact = false): number => {
   const { stationW, blockH, logRows } = metricsOf(compact)
   const per = Math.max(1, Math.floor((cols - 3) / stationW))
-  return 2 + Math.ceil(STATIONS.length / per) * blockH + 2 + SEAT_ROW_H + logRows + 2
+  return 2 + Math.ceil(STATIONS.length / per) * blockH + DESK_TOP_H + SEAT_ROW_H + logRows + 2
 }
 
 export const stationStand = (at: Point): Point => ({ x: at.x + 2, y: at.y + 2 })
 export const deskSeat = (desk: Point, seat: number): Point => ({
   x: desk.x + 1 + (seat % SEATS) * SEAT_W,
-  y: desk.y + 2 + Math.floor(seat / SEATS) * SEAT_ROW_H,
+  y: desk.y + DESK_TOP_H + Math.floor(seat / SEATS) * SEAT_ROW_H,
 })
 
 // Reads only a key the object holds itself, so a key such as "__proto__" never reaches Object.prototype.
@@ -342,6 +346,7 @@ export const parseBeacon = (raw: string, id: string): Beacon | undefined => {
   }
   if (!isRecord(data) || data.v !== 1 || data.id !== id || data.ended === true || !isRecord(data.world)) return undefined
   const name = str(data.name, CAP_SHORT)
+  const agent = str(data.agent, LABEL_SHARE)
   const at = count(data.at)
   if (name === undefined || at === undefined) return undefined
   const w = data.world
@@ -349,6 +354,7 @@ export const parseBeacon = (raw: string, id: string): Beacon | undefined => {
     v: 1,
     id,
     name,
+    ...(agent ? { agent } : {}),
     at,
     world: {
       activity: parsed(safeEntries(w.activity, MAX_PEER_AGENTS), toActivity),
@@ -363,7 +369,7 @@ export const parseBeacon = (raw: string, id: string): Beacon | undefined => {
 export const crewOf = (id: string): string => (id.includes(':') ? id.slice(0, id.indexOf(':')) : '')
 
 // Ended and quiet agents stay out, and only file names travel: commands, queries and full paths can hold secrets.
-export const beaconOf = (id: string, name: string, w: World, now: number): Beacon => {
+export const beaconOf = (id: string, name: string, w: World, now: number, agent = AGENT): Beacon => {
   const roster = w.roster
     .filter(m => !isEnded(m.status))
     .slice(0, MAX_PEER_AGENTS)
@@ -376,7 +382,7 @@ export const beaconOf = (id: string, name: string, w: World, now: number): Beaco
       .map(([who, act]) => [who, { ...act, target: act.onFile && PATH_STATIONS.has(act.spot) ? clip(base(act.target), CAP_SHORT) : '' }]),
   )
   const log = w.log.filter(l => now - l.at < LOG_SHARE_MS).slice(-LOG_SHARE)
-  return { v: 1, id, name, at: now, world: { activity, roster, log, links: w.links.filter(l => now - l.at < MAIL_MS) } }
+  return { v: 1, id, name, agent, at: now, world: { activity, roster, log, links: w.links.filter(l => now - l.at < MAIL_MS) } }
 }
 
 // Turns a recipient as its sender named it into that recipient's actor id, or '' when unknown.
@@ -393,7 +399,7 @@ export const mergeScene = (local: World, others: readonly Beacon[]): World => {
   const out: World = { activity: { ...local.activity }, links: resolveLinks(local, ''), roster: [...local.roster], log: [...local.log] }
   for (const b of others) {
     const p = (id: string) => `${b.id}:${id}`
-    out.roster.push({ id: p(MAIN), name: b.name, type: 'main', status: 'running' })
+    out.roster.push({ id: p(MAIN), name: b.agent || MAIN, type: 'main', status: 'running', desk: b.name })
     for (const m of b.world.roster) out.roster.push({ ...m, id: p(m.id), parentId: p(m.parentId ?? MAIN) })
     for (const [id, act] of Object.entries(b.world.activity)) {
       out.activity[p(id)] = { ...act, at: Math.min(act.at, b.at), spotAt: Math.min(act.spotAt, b.at) }
@@ -408,7 +414,7 @@ export const mergeScene = (local: World, others: readonly Beacon[]): World => {
 // local adds this session's own robot; a view that is no session of its own draws only what the beacons hold.
 export const castOf = (w: World, now = Date.now(), local = true): Member[] => {
   const seen = new Set<string>(local ? [MAIN] : [])
-  const cast: Member[] = local ? [{ id: MAIN, name: 'session', type: 'main', status: 'running' }] : []
+  const cast: Member[] = local ? [{ id: MAIN, name: AGENT, type: 'main', status: 'running' }] : []
   for (const one of w.roster) {
     if (!seen.has(one.id) && !isEnded(one.status)) cast.push(one)
     seen.add(one.id)
@@ -438,9 +444,9 @@ export const planDesks = (sizes: readonly (readonly [string, number])[], lay: La
   let y = lay.deskTop
   for (let i = 0; i < sizes.length; i += per) {
     const row = sizes.slice(i, i + per)
-    if (y + 2 + SEAT_ROW_H > lay.logDivider) break
+    if (y + DESK_TOP_H + SEAT_ROW_H > lay.logDivider) break
     row.forEach(([crew], j) => plans.push({ crew, at: { x: 2 + j * DESK_W, y } }))
-    y += 2 + Math.max(1, ...row.map(([, n]) => Math.ceil(n / SEATS))) * SEAT_ROW_H + 1
+    y += DESK_TOP_H + Math.max(1, ...row.map(([, n]) => Math.ceil(n / SEATS))) * SEAT_ROW_H + 1
   }
   return plans
 }
@@ -722,11 +728,12 @@ export class Scene {
     }
 
     desks.forEach(({ crew, at: desk }) => {
-      const name = crew ? (w.roster.find(m => m.id === `${crew}:${MAIN}`)?.name ?? crew.slice(0, 6)) : here
+      const name = crew ? (w.roster.find(m => m.id === `${crew}:${MAIN}`)?.desk ?? crew.slice(0, 6)) : here
       const busy = cast.some(a => crewOf(a.id) === crew && own(w.activity, a.id)?.thinking)
       const ink = crewInk(crew, MUSE)
-      c.write(desk.x + 1, desk.y, ` ${'∴'.repeat(DESK_W - 5)} `, ink, busy ? WOOD_HOT : WOOD)
-      c.write(desk.x + 1, desk.y + 1, short(name, DESK_W - 2), busy ? TEXT : DIM)
+      const label = clip(name, DESK_W - 5)
+      c.write(desk.x + 1, desk.y, ` ${label} ${'∴'.repeat(DESK_W - 5 - label.length)}`, ink, busy ? WOOD_HOT : WOOD)
+      c.write(desk.x + 2, desk.y, label, TEXT, busy ? WOOD_HOT : WOOD)
     })
 
     for (const link of w.links.filter(l => now - l.at < MAIL_MS)) {

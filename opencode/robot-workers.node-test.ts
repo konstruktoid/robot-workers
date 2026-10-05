@@ -69,6 +69,21 @@ test('a child session sits at its root desk as a subagent and leaves the roster 
   await hooks.dispose()
 })
 
+test('the main robot takes the agent of the latest user message, and a child session leaves it alone', async () => {
+  const { hooks, beacon } = await start()
+  const message = (sessionID: string, role: string, agent: string) =>
+    hooks.event({ event: { type: 'message.updated', properties: { info: { id: 'm', sessionID, role, agent } } } as never })
+  await hooks['chat.message']({ sessionID: ROOT }, { message: {} as never, parts: [] })
+  assert.equal((await beacon()).agent, 'opencode')
+  await message(ROOT, 'user', 'plan')
+  await message(CHILD, 'user', 'explore')
+  await message(ROOT, 'assistant', 'build')
+  const b = await beacon()
+  assert.equal(b.agent, 'plan')
+  assert.equal(b.name, 'ansible-role')
+  await hooks.dispose()
+})
+
 test('reasoning seats the robot to think and a permission prompt marks it waiting', async () => {
   const { hooks, beacon } = await start()
   const reasoning = { type: 'reasoning', sessionID: ROOT, time: { start: 1 } }

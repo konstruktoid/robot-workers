@@ -1,19 +1,10 @@
 # robot-workers
 
-A pixel-art workshop that shows your coding agents at work. Active Claude Code, GitHub Copilot CLI and opencode
+A pixel-art workshop that shows your coding agents at work. Active Claude Code, GitHub Copilot CLI and OpenCode
 sessions on the machine get a desk. The session itself and each visible subagent is a small robot that walks to a
 station for the tool it is using, sits down to think, and goes back to its desk when it is done.
 
-```
- read   search   edit   write   execute   test   web   agents      ← action stations
- ┌────────────┐  ┌────────────┐
- │ ∴ think    │  │ ∴ think:…  │                                     ← one desk per session
- │  🤖  🤖    │  │  🤖        │
- └────────────┘  └────────────┘
- LOGS  Explore reads main.yml · main starts a subagent · …          ← last few actions
-```
-
-(This is a rough sketch. The real map is drawn in coloured half-block pixels.)
+![The Workshop pane with five subagents at work](docs/workshop.gif)
 
 ## What it shows
 
@@ -32,7 +23,7 @@ Each writer publishes a small JSON *beacon* to:
 ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/robot-workers/sessions/<session-id>.json
 ```
 
-Claude Code and opencode refresh their beacons about once a second. Copilot CLI refreshes its beacon when a session,
+Claude Code and OpenCode refresh their beacons about once a second. Copilot CLI refreshes its beacon when a session,
 prompt, tool, error or subagent lifecycle hook fires; with no such event, its beacon becomes stale after 15 seconds.
 Each viewer skips stale and ended beacons, then merges the rest into one map. Beacons from other sessions are treated as
 untrusted input: every field is checked, capped and cleaned of control characters before it is drawn.
@@ -43,7 +34,7 @@ the base name of a file being read, searched, edited or written. The folder is m
 
 ## Usage
 
-The source is at [github.com/konstruktoid/robot-workers](https://github.com/konstruktoid/robot-workers). The opencode
+The source is at [github.com/konstruktoid/robot-workers](https://github.com/konstruktoid/robot-workers). The OpenCode
 and Copilot CLI setups below run from a checkout:
 
 ```sh
@@ -96,18 +87,18 @@ beacon, so they get a desk on the maps of interactive sessions.
 It makes no network requests, calls no model, and changes no tool call. It adds no skills, agents or MCP servers, so
 it costs no context tokens.
 
-### opencode
+### OpenCode
 
-opencode needs two separate plugins, because it loads server and TUI plugins from different places.
+OpenCode needs two separate plugins, because it loads server and TUI plugins from different places.
 
-1. From the checkout, link the beacon writer into opencode's global plugin folder:
+1. From the checkout, link the beacon writer into OpenCode's global plugin folder:
 
    ```sh
    mkdir -p ~/.config/opencode/plugins
    ln -s "$PWD/opencode/robot-workers.ts" ~/.config/opencode/plugins/robot-workers.ts
    ```
 
-   opencode also loads the older singular folder, `~/.config/opencode/plugin/`. Use one of the two, not both.
+   OpenCode also loads the older singular folder, `~/.config/opencode/plugin/`. Use one of the two, not both.
 
 2. Add the workshop view to the `plugin` array in `~/.config/opencode/tui.json`, using the checkout's absolute path:
 
@@ -115,8 +106,8 @@ opencode needs two separate plugins, because it loads server and TUI plugins fro
    { "$schema": "https://opencode.ai/tui.json", "plugin": ["file:///path/to/robot-workers/opencode/workshop.tsx"] }
    ```
 
-Restart opencode. The workshop then appears in the session sidebar, below Context. `/workshop` hides or shows it. It
-only reads beacons, so it shows Claude Code, Copilot CLI and opencode sessions.
+Restart OpenCode. The workshop then appears in the session sidebar, below Context. `/workshop` hides or shows it. It
+only reads beacons, so it shows Claude Code, Copilot CLI and OpenCode sessions.
 
 ### GitHub Copilot CLI
 
@@ -130,7 +121,7 @@ This writes `robot-workers.json` under `${COPILOT_HOME:-$HOME/.copilot}/hooks/`.
 installer, by absolute path, on this checkout's `copilot/robot-workers.mjs`. It replaces an existing
 `robot-workers.json` in that directory. Run the installer with the same `COPILOT_HOME` that Copilot CLI uses. Restart
 Copilot CLI after installing, and rerun the installer if the checkout or that Node installation moves. Active Copilot
-sessions and subagents that emit Copilot lifecycle events then appear in the existing Claude Code Workshop and opencode
+sessions and subagents that emit Copilot lifecycle events then appear in the existing Claude Code Workshop and OpenCode
 sidebar maps.
 
 The hook observes session, prompt, tool, error and subagent lifecycle events. It returns `{}` to Copilot for every
@@ -148,8 +139,8 @@ name.
 | `hooks/register.tsx` | Claude Code side: event hooks, beacon writing and reading, the Workshop pane |
 | `hooks/scene.ts` | Shared, side-effect-free code: beacon parsing, layout, robot designs, pixel painting |
 | `hooks/*.test.ts` | Claude Code plugin tests |
-| `opencode/robot-workers.ts` | opencode beacon writer (server plugin) |
-| `opencode/workshop.tsx`, `opencode/frame.ts` | opencode sidebar view (TUI plugin) |
+| `opencode/robot-workers.ts` | OpenCode beacon writer (server plugin) |
+| `opencode/workshop.tsx`, `opencode/frame.ts` | OpenCode sidebar view (TUI plugin) |
 | `opencode/*.node-test.ts` | opencode-side tests for `node:test` |
 | `copilot/robot-workers.mjs` | GitHub Copilot CLI beacon writer (hook command) |
 | `copilot/install.mjs` | Installs the Copilot user-level hook configuration |
@@ -166,10 +157,10 @@ claude plugin validate --strict . && claude plugin test .
 Each release increments `version` in `.claude-plugin/plugin.json`. Without the bump, `claude plugin update` keeps
 users on the old copy.
 
-The pixel map is drawn by Claude Code and opencode. Copilot CLI contributes event-recent sessions to those existing maps
+The pixel map is drawn by Claude Code and OpenCode. Copilot CLI contributes event-recent sessions to those existing maps
 through hooks; it does not add a pane to Copilot CLI itself.
 
-`claude plugin test` runs every `hooks/*.test.ts`. The opencode tests use the `.node-test.ts` suffix so that
+`claude plugin test` runs every `hooks/*.test.ts`. The OpenCode tests use the `.node-test.ts` suffix so that
 `claude plugin test` skips them. Run them with a Node build that supports TypeScript type stripping, or transpile them
 to `.mjs` first:
 
