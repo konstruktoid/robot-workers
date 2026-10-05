@@ -61,7 +61,7 @@ To load it for one session without installing, use `claude --plugin-dir /path/to
 uninstalled checkout in every session, do either of these:
 
 - Put the absolute path in `CLAUDE_CODE_PLUGIN_DIRS` (Claude Code v2.1.280 or later).
-- Link the folder into your personal skills directory: `ln -s "$PWD" ~/.claude/skills/robot-workers`.
+- Link the folder into your personal skills directory: `ln -s /path/to/robot-workers ~/.claude/skills/robot-workers`.
 
 After editing the plugin's files, run `/reload-plugins` in the session.
 
@@ -77,15 +77,47 @@ beacon, so they get a desk on the maps of interactive sessions.
 
 `claude plugin validate .` lists every API call the mod makes. Each one is used for this:
 
-- `$.process.run`: once per session start, runs a short `sh` script that creates the beacon folder, refuses it if it
-  is a symlink or owned by someone else, sets modes `0700` and `0600`, and deletes beacons older than a day.
-- `$.fs.write`, `$.fs.list`, `$.fs.read`: only inside the beacon folder.
+- `$.process.run`: once per session start, runs `sh -c` with the fixed script below and the session id as `$1`. It
+  creates the beacon folder, refuses it if it is relative, a symlink or owned by someone else, sets modes `0700` and
+  `0600`, deletes beacons untouched for a day, and prints the folder path. The only programs it starts are `mkdir`,
+  `chmod` and `find`; `umask`, `case`, `[`, `:` and `printf` are shell built-ins. A shell is needed because
+  `$.fs.write` cannot set a file mode.
+
+  ```sh
+  umask 077; d="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/robot-workers/sessions"; case "$d" in /*) ;; *) exit 1;; esac;
+  f="$d/$1.json"; mkdir -p "$d" && [ ! -L "$d" ] && [ -O "$d" ] && chmod 700 "$d" && [ ! -L "$f" ] &&
+  { [ -e "$f" ] || : > "$f"; } && chmod 600 "$f" &&
+  { find "$d" -maxdepth 1 -type f -name "*.json" -mmin +1440 -delete; printf %s "$d"; }
+  ```
+
+- `$.fs.write`, `$.fs.list`, `$.fs.read`: only inside that folder. The mod writes one file,
+  `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/robot-workers/sessions/<session-id>.json`, in the format in
+  [BEACON.md](BEACON.md). No build, start-up, settings or instructions file is written, and no tool runs or obeys
+  the beacons; other robot-workers viewers only draw them.
 - `$.agent.list`, `$.session.id`, `$.session.root`: the session's own agents, id and folder name.
 - `$.clock.every`, `$.state.*`, `$.ui.*`, `$.command.register`: the once-a-second tick, map state, the pane and
   `/workers`.
 
-It makes no network requests, calls no model, and changes no tool call. It adds no skills, agents or MCP servers, so
-it costs no context tokens.
+Hooks:
+
+- `tool.call`: records the tool name and its target, then returns `next(e)` unchanged. It never blocks, rewrites or
+  answers a call. The target (a file path, or the first 40 characters of a shell command) is kept only in this
+  session's own pane state; beacons carry at most a file's base name.
+- `turn.start`, `turn.step`, `turn.complete`, `session.start`, `session.end`, `command.run`, `ui.render`: drive the
+  robots' poses, the log strip, the pane, the beacon lifecycle and `/workers`.
+- The mod has no `tool.check` or permission hook and makes no permission decision.
+
+What it reads and sends:
+
+- `CLAUDE_CONFIG_DIR` and `HOME` are read only to locate the beacon folder. The mod reads no token, API key or other
+  credential, and no `user_config` value is needed.
+- It sends nothing off the machine: no network requests, no model calls. The beacon is a local file. The host names
+  in this README and in `BEACON.md` (github.com, opencode.ai) are documentation links, and `x.test` in
+  `hooks/security.test.ts` is a reserved test domain used as hostile input.
+- `DENIED_KEYS` in `hooks/scene.ts` lists `__proto__`, `constructor` and `prototype` so that beacons from other
+  sessions, parsed as untrusted JSON, cannot pollute object prototypes. Those keys are dropped, never looked up.
+
+It adds no skills, agents or MCP servers, so it costs no context tokens.
 
 ### OpenCode
 
@@ -95,7 +127,7 @@ OpenCode needs two separate plugins, because it loads server and TUI plugins fro
 
    ```sh
    mkdir -p ~/.config/opencode/plugins
-   ln -s "$PWD/opencode/robot-workers.ts" ~/.config/opencode/plugins/robot-workers.ts
+   ln -s /path/to/robot-workers/opencode/robot-workers.ts ~/.config/opencode/plugins/robot-workers.ts
    ```
 
    OpenCode also loads the older singular folder, `~/.config/opencode/plugin/`. Use one of the two, not both.

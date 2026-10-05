@@ -64,7 +64,7 @@ also loads the older singular `plugin/`):
 
 ```sh
 mkdir -p ~/.config/opencode/plugins
-ln -s "$PWD/opencode/robot-workers.ts" ~/.config/opencode/plugins/robot-workers.ts
+ln -s /path/to/robot-workers/opencode/robot-workers.ts ~/.config/opencode/plugins/robot-workers.ts
 ```
 
 Each top-level OpenCode session gets a desk; its child sessions (from the `task` tool) sit there as subagents. Test

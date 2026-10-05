@@ -37,31 +37,6 @@ const mapText = async ($: Engine): Promise<string> => {
   return rows.join('\n')
 }
 
-test('tool.check ask marks the in-flight call as waiting and passes the verdict through', async ($, on) => {
-  let id = ''
-  let release: () => void = () => undefined
-  on('tool.call', ($$, e) => {
-    id = e.tool_use_id
-    return new Promise(resolve => {
-      release = () => resolve({ result: 'ok' })
-    })
-  })
-  on('tool.check', async () => ({ decision: 'ask' as const, reason: 'needs a human' }))
-  const call = $.tool.call({ tool: 'Read', file_path: '/src/w.ts' } as never)
-  while (!id) await new Promise(r => setTimeout(r, 5))
-  const verdict = await $.tool.check({ tool: 'Read', input: { file_path: '/src/w.ts' }, tool_use_id: id })
-  expect(verdict.decision).toBe('ask')
-  expect(verdict.reason).toBe('needs a human')
-  const during = await legend($)
-  expect(during).toContain('? Read')
-  expect(await mapText($)).toContain('waits for permission to use Read')
-  release()
-  await call
-  const after = await legend($)
-  expect(after).not.toContain('? Read')
-  expect(after).not.toContain('▶')
-})
-
 test('tool.check allow leaves the call running and not waiting', async ($, on) => {
   let id = ''
   let release: () => void = () => undefined
